@@ -1,0 +1,7 @@
+postgres:
+  image: postgres:9.4.5
+  environment:
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_password
+  ports:
+    - "8888:5432"

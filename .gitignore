@@ -1,0 +1,6 @@
+bin/
+.editorconfig
+.vscode
+node_modules
+
+*scratch*
