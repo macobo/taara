@@ -4,11 +4,24 @@ import * as temp from "temp";
 import {Promise} from "when";
 import * as nodefn from "when/node";
 
-import * as API from "./API";
+import {
+    DatabaseEngine,
+    StorageEngine,
+    StorageMetadata,
+    SnapshotIdentifier
+} from "./API";
 import {arrayify, streamToFile} from "./utils";
 
+var tempFileOptions: temp.AffixOptions = {
+    prefix: "taara-restore-"
+};
+
+export function setTempDir(dirPath: string) {
+    tempFileOptions.dir = dirPath;
+}
+
 /** Lists all snapshots stored in storageEngine to date. */
-export function listSnapshots(storageEngine: API.StorageEngine): Promise<Array<API.SnapshotIdentifier>> {
+export function listSnapshots(storageEngine: StorageEngine): Promise<Array<SnapshotIdentifier>> {
     return storageEngine.list();
 }
 
@@ -22,11 +35,11 @@ export function listSnapshots(storageEngine: API.StorageEngine): Promise<Array<A
 export function storeSnapshot(
     tables: string|Array<string>,
     userMetadata: Object,
-    storageEngine: API.StorageEngine,
-    dbEngine: API.DatabaseEngine
-): Promise<API.StorageMetadata> {
+    storageEngine: StorageEngine,
+    dbEngine: DatabaseEngine
+): Promise<StorageMetadata> {
     const tableList = arrayify(tables);
-    const identifier = new API.SnapshotIdentifier(tableList);
+    const identifier = new SnapshotIdentifier(tableList);
     const storedData = {
         identifier: identifier,
         stats: {},
@@ -47,10 +60,10 @@ export function storeSnapshot(
  * this snapshot.
  */
 export function restoreSnapshot(
-    identifier: API.SnapshotIdentifier,
-    storageEngine: API.StorageEngine,
-    dbEngine: API.DatabaseEngine
-): Promise<API.StorageMetadata> {
+    identifier: SnapshotIdentifier,
+    storageEngine: StorageEngine,
+    dbEngine: DatabaseEngine
+): Promise<StorageMetadata> {
     var storageMetadata;
     const dumpFileLocation = temp.path(tempFileOptions);
     return storageEngine
@@ -64,18 +77,10 @@ export function restoreSnapshot(
 }
 
 export function deleteSnapshot(
-    identifier: API.SnapshotIdentifier,
-    storageEngine: API.StorageEngine
+    identifier: SnapshotIdentifier,
+    storageEngine: StorageEngine
 ): Promise<void> {
     return storageEngine
         .deleteMetadata(identifier)
         .then(() => storageEngine.deleteSnapshot(identifier));
-}
-
-var tempFileOptions: temp.AffixOptions = {
-    prefix: "taara-restore-"
-}
-
-export function setTempDir(dirPath: string) {
-    tempFileOptions.dir = dirPath;
 }

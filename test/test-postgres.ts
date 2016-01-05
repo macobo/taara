@@ -124,5 +124,7 @@ describe("PostgresDatabaseEngine", () => {
                 .then(() => fs.unlinkSync(path))
                 .then(() => expect(countRows("dumped_table")).to.eventually.eql(nRows).notify(done));
         });
+
+        // it("should fail to restore a table if it already exists")
     });
 });
