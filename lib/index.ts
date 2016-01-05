@@ -84,3 +84,10 @@ export function deleteSnapshot(
         .deleteMetadata(identifier)
         .then(() => storageEngine.deleteSnapshot(identifier));
 }
+
+export function getMetadata(
+    identifier: SnapshotIdentifier,
+    storageEngine: StorageEngine
+): Promise<StorageMetadata> {
+    return storageEngine.loadMetadata(identifier);
+}
