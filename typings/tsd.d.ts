@@ -12,3 +12,4 @@
 /// <reference path="promises-a-plus/promises-a-plus.d.ts" />
 /// <reference path="lodash/lodash.d.ts" />
 /// <reference path="pg/pg.d.ts" />
+/// <reference path="aws-sdk/aws-sdk.d.ts" />

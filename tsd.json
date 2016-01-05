@@ -12,7 +12,7 @@
       "commit": "fe563dff3428bac1260d1794e2c2ecf8f097535a"
     },
     "node/node.d.ts": {
-      "commit": "419793fb796b0e5c1ed11e018ad28475de0c3735"
+      "commit": "6a6ad7068a177c0d7a8a20830626cb63277191c5"
     },
     "moment/moment.d.ts": {
       "commit": "fe563dff3428bac1260d1794e2c2ecf8f097535a"
@@ -43,6 +43,9 @@
     },
     "pg/pg.d.ts": {
       "commit": "419793fb796b0e5c1ed11e018ad28475de0c3735"
+    },
+    "aws-sdk/aws-sdk.d.ts": {
+      "commit": "6a6ad7068a177c0d7a8a20830626cb63277191c5"
     }
   }
 }

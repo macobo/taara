@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "author": "Karl-Aksel Puulmann",
   "dependencies": {
+    "aws-sdk": "^2.2.27",
     "moment": "^2.11.0",
     "temp": "^0.8.3",
     "verror": "^1.6.0",
