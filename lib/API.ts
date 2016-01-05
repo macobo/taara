@@ -69,7 +69,7 @@ export abstract class StorageEngine {
     abstract list(): Promise<Array<SnapshotIdentifier>>; // :TODO: Should this contain some extra info?
     abstract loadSnapshot(identifier: SnapshotIdentifier): Promise<stream.Readable>;
     abstract loadMetadata(identifier: SnapshotIdentifier): Promise<StorageMetadata>;
-    abstract saveSnapshot(identifier: SnapshotIdentifier, snapshot: stream.Readable): Promise<any>; // Promise<stats>
+    abstract saveSnapshot(identifier: SnapshotIdentifier, snapshotPath: string): Promise<any>; // Promise<stats>
     abstract saveMetadata(metadata: StorageMetadata): Promise<StorageMetadata>;
     abstract deleteSnapshot(identifier: SnapshotIdentifier): Promise<void>;
     abstract deleteMetadata(identifier: SnapshotIdentifier): Promise<void>;
@@ -78,7 +78,8 @@ export abstract class StorageEngine {
 abstract class FileBasedStorageEngine extends StorageEngine {
     protected abstract ls(path: string): Promise<Array<FileDescriptor>>;
     protected abstract read(path: string): Promise<stream.Readable>;
-    protected abstract save(path: string, stream: stream.Readable): Promise<any>; // stats?
+    protected abstract saveFileFrom(destination: string, source: string): Promise<any>;
+    protected abstract save(path: string, data: string): Promise<any>;
     protected abstract delete(path: string): Promise<void>;
 
     protected abstract rootPath(): string
@@ -108,14 +109,14 @@ abstract class FileBasedStorageEngine extends StorageEngine {
           .then(StorageMetadata.fromJson); // when.try?
     }
 
-    saveSnapshot(identifier: SnapshotIdentifier, snapshot: stream.Readable): Promise<void> {
-        return this.save(this.path("snapshot", identifier), snapshot);
+    saveSnapshot(identifier: SnapshotIdentifier, snapshotPath: string): Promise<void> {
+        return this.saveFileFrom(this.path("snapshot", identifier), snapshotPath);
     }
 
     saveMetadata(metadata: StorageMetadata): Promise<StorageMetadata> {
         const path = this.path("metadata", metadata.identifier);
         const json = StorageMetadata.toJSON(metadata);
-        return this.save(path, Utils.makeReadStream(json)).then(() => metadata);
+        return this.save(path, json).then(() => metadata);
     }
 
     deleteSnapshot(identifier: SnapshotIdentifier) {
@@ -133,6 +134,15 @@ export class FileSystemEngine extends FileBasedStorageEngine {
     }
 
     rootPath() { return this._rootPath; }
+
+    private createdir(filepath: string) {
+        // Try to create the root directory if needed.
+        try {
+            fs.mkdirSync(path.dirname(filepath));
+        } catch (error) {
+            // Already there.
+        }
+    }
 
     protected delete(path: string): Promise<any> {
         return nodefn.call(fs.unlink, path);
@@ -154,18 +164,18 @@ export class FileSystemEngine extends FileBasedStorageEngine {
         return when(reader);
     }
 
-    protected save(filepath: string, readStream: stream.Readable): Promise<void> {
-        // Try to create the root directory if needed.
-        try {
-            fs.mkdirSync(path.dirname(filepath));
-        } catch (error) {
-            // Already there.
-        }
+    protected save(filepath: string, contents: string): Promise<any> {
+        this.createdir(filepath);
+        return nodefn.call(fs.writeFile, filepath, contents);
+    }
+
+    protected saveFileFrom(destination: string, source: string): Promise<any> {
+        this.createdir(destination);
+        const readStream = fs.createReadStream(source);
+        const writeStream = fs.createWriteStream(destination);
+        readStream.pipe(writeStream);
 
         const deferred = when.defer<void>();
-        const writeStream = fs.createWriteStream(filepath);
-        readStream.pipe(writeStream);
-        readStream.resume();
         writeStream.on("finish", deferred.resolve);
         writeStream.on("error", deferred.reject);
         readStream.on("error", deferred.reject);
@@ -174,7 +184,7 @@ export class FileSystemEngine extends FileBasedStorageEngine {
 }
 
 export abstract class DatabaseEngine {
-    abstract dump(tables: Array<string>): Promise<stream.Readable>;
+    abstract dump(tables: Array<string>, snapshotPath: string): Promise<void>;
     abstract restore(snapshotPath: string): Promise<void>; // stats?
 }
 
@@ -204,23 +214,24 @@ export class PostgresEngine extends DatabaseEngine {
         return [result, env];
     }
 
-    dump(tables: Array<string>): Promise<stream.Readable> {
+    dump(tables: Array<string>, outpath: string): Promise<void> {
         var [params, env] = this.authArgs();
         params.push("-F", "custom");
         for (let table of tables) {
             params.push("-t", table);
         }
+        params.push("-f", outpath);
         // :TODO: shellescape
         const child = spawn("pg_dump", params, {env: env});
 
-        const deferred = when.defer<stream.Readable>();
+        const deferred = when.defer<void>();
         child.on("error", (error) => {
             deferred.reject(new VError(error, "Could not spawn pg_dump."));
         });
 
         child.on("exit", (code, signal) => {
             if (code === 0) {
-                deferred.resolve(child.stdout);
+                deferred.resolve();
             } else {
                 Utils.streamToString(child.stderr).then((log) => {
                     const table_string = tables.map((t) => `'${t}'`).join(", ");

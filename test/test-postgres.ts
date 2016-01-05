@@ -8,7 +8,6 @@ import * as temp from "temp";
 import {Promise, defer} from "when";
 
 import * as API from "../lib/API";
-import * as Utils from "../lib/utils";
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -27,12 +26,13 @@ describe("PostgresDatabaseEngine", () => {
         host: "localhost",
         port: 8888
     };
+    const testDump = temp.path("test-taara-dump-");
 
     it("should fail to create a stream when cannot connect to a database", (done) => {
         const params = <API.PostgresAuthParams> _.merge({}, connectionParams, {port: 9999});
         const dbEngine = new API.PostgresEngine(params);
 
-        dbEngine.dump(["table_foobar"])
+        dbEngine.dump(["table_foobar"], testDump)
             .then(
                 (value) => { throw Error("this should fail"); },
                 (error) => expectErrorToContain(error, [
@@ -47,7 +47,7 @@ describe("PostgresDatabaseEngine", () => {
 
     it("should fail when the table being dumped doesn't exist", (done) => {
         const dbEngine = new API.PostgresEngine(connectionParams);
-        const promise = dbEngine.dump(["table_foobar"]);
+        const promise = dbEngine.dump(["table_foobar"], testDump);
 
         expect(promise)
             .to.eventually.be.rejectedWith(/Could not dump tables 'table_foobar': pg_dump: No matching tables were found/)
@@ -110,18 +110,16 @@ describe("PostgresDatabaseEngine", () => {
         after(() => pgClient.end());
 
         it("should be able to dump a table", (done) => {
-            expect(dbEngine.dump(["dumped_table"]))
+            expect(dbEngine.dump(["dumped_table"], testDump))
                 .to.eventually.be.fulfilled
                 .notify(done);
         });
 
         it("should be able to restore a table", (done) => {
-            var path = temp.path();
-            dbEngine.dump(["dumped_table"])
-                .then((dump) => Utils.streamToFile(dump, path))
+            dbEngine.dump(["dumped_table"], testDump)
                 .then(() => query("DROP TABLE dumped_table;"))
-                .then(() => dbEngine.restore(path))
-                .then(() => fs.unlinkSync(path))
+                .then(() => dbEngine.restore(testDump))
+                .then(() => fs.unlinkSync(testDump))
                 .then(() => expect(countRows("dumped_table")).to.eventually.eql(nRows).notify(done));
         });
 

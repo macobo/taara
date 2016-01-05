@@ -40,16 +40,19 @@ export function storeSnapshot(
 ): Promise<StorageMetadata> {
     const tableList = arrayify(tables);
     const identifier = new SnapshotIdentifier(tableList);
+    const tempFilePath = temp.path(tempFileOptions);
     const storedData = {
         identifier: identifier,
         stats: {},
         metadata: userMetadata
     };
 
+    // This writes the dump to two files in case of a on-disk store, can be optimized if needed.
     return dbEngine
-        .dump(tableList)
-        .then((stream) => storageEngine.saveSnapshot(identifier, stream))
-        .then(() => storageEngine.saveMetadata(storedData));
+        .dump(tableList, tempFilePath)
+        .then(() => storageEngine.saveSnapshot(identifier, tempFilePath))
+        .then(() => storageEngine.saveMetadata(storedData))
+        .finally(() => nodefn.call(fs.unlink, tempFilePath));
 }
 
 /**

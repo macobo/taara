@@ -1,7 +1,6 @@
 /// <reference path="../typings/tsd.d.ts" />
 import {expect} from "chai";
 import * as moment from "moment";
-import * as stream from "stream";
 import * as temp from "temp";
 
 import * as API from "../lib/API";
@@ -49,8 +48,8 @@ describe("FileSystemEngine", () => {
         public delete(path: string) { return super.delete(path); }
         public ls(path: string) { return super.ls(path); }
         public read(path: string) { return super.read(path); }
-        public save(path: string, readStream: stream.Readable) {
-            return super.save(path, readStream);
+        public save(path: string, content: string) {
+            return super.save(path, content);
         }
     }
 
@@ -67,9 +66,8 @@ describe("FileSystemEngine", () => {
         });
 
         it("should be able to save a file", (done) => {
-            const fStream = Utils.makeReadStream("filecontent");
             engine
-                .save(rootPath + "/file.ext", fStream)
+                .save(rootPath + "/file.ext", "filecontent")
                 .done(done);
         });
 
