@@ -14,7 +14,9 @@ export function listSnapshots(storageEngine: API.StorageEngine): Promise<Array<A
 
 /**
  * Takes a snapshot of tables from database and stores it on S3.
- * @return a promise metadata with the identifier, metadata and stats for
+ *
+ * @param userMetadata object to be stored with the snapshot.
+ * @return a promise for an object with the identifier, metadata and stats for
  * this snapshot.
  */
 export function storeSnapshot(
@@ -41,7 +43,7 @@ export function storeSnapshot(
  * Given an identifier (from `taara.listSnapshots`) this will restore the table.
  * Uses temporary files - to configure what directory to use, see `taara.setTempDir`.
  *
- * @return a promise for metadata with the identifier, metadata and stats for
+ * @return a promise for an object with the identifier, metadata and stats for
  * this snapshot.
  */
 export function restoreSnapshot(
@@ -60,7 +62,6 @@ export function restoreSnapshot(
         .then(() => storageMetadata)
         .finally(() => nodefn.call(fs.unlink, dumpFileLocation));
 }
-
 
 export function deleteSnapshot(
     identifier: API.SnapshotIdentifier,
