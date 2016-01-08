@@ -62,7 +62,7 @@ export const StorageMetadata = {
     }
 };
 
-interface FileDescriptor {
+export interface FileDescriptor {
     filename: string;
     extension: string;
 }

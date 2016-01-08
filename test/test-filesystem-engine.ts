@@ -2,6 +2,7 @@
 import {expect} from "chai";
 import * as moment from "moment";
 import * as temp from "temp";
+import {Promise} from "when";
 
 import * as API from "../lib/API";
 
@@ -40,23 +41,31 @@ describe("Models", () => {
     });
 });
 
-describe("FileSystemEngine", () => {
-    var rootPath, engine: PublicFileSystemEngine;
+interface PublicAbstractFileSystemEngine {
+    delete(path: string): Promise<void>;
+    ls(path: string): Promise<Array<API.FileDescriptor>>;
+    readContents(path: string): Promise<string>;
+    copyFileToLocalDisk(source: string, potentialDestination: string): Promise<string>;
+    save(path: string, data: string): Promise<any>;
+    delete(path: string): Promise<void>;
+}
 
-    class PublicFileSystemEngine extends API.FileSystemEngine {
-        public delete(path: string) { return super.delete(path); }
-        public ls(path: string) { return super.ls(path); }
-        public readContents(path: string) { return super.readContents(path); }
-        public save(path: string, content: string) {
-            return super.save(path, content);
-        }
+class PublicFileSystemEngine extends API.FileSystemEngine implements PublicAbstractFileSystemEngine {
+    public delete(path: string) { return super.delete(path); }
+    public ls(path: string) { return super.ls(path); }
+    public readContents(path: string) { return super.readContents(path); }
+    public save(path: string, content: string) {
+        return super.save(path, content);
     }
+    public saveFileTo(destination: string, localPath: string) {
+        return super.saveFileTo(destination, localPath);
+    }
+    public copyFileToLocalDisk(source: string, localPath: string) {
+        return super.copyFileToLocalDisk(source, localPath);
+    }
+}
 
-    before(() => {
-        rootPath = temp.mkdirSync("taara-test");
-        engine = new PublicFileSystemEngine(rootPath);
-    });
-
+function test(engine: PublicAbstractFileSystemEngine, rootPath: string) {
     describe("native methods", () => {
         it("should be able to list an empty directory", (done) => {
             engine.ls(rootPath)
@@ -96,6 +105,11 @@ describe("FileSystemEngine", () => {
                 .done(done);
         });
     });
+}
+
+describe("FileSystemEngine", () => {
+    const rootPath = temp.mkdirSync("taara-fs-test-");
+    test(new PublicFileSystemEngine(rootPath), rootPath);
 
     // it("should fail to store the same snapshot a second time.")
 });
