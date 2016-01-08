@@ -1,6 +1,8 @@
 # taara
 
-Node library for snapshotting postgres tables to disk/S3 and restoring them.
+[![Build Status](https://img.shields.io/travis/macobo/taara/master.svg?style=flat-square)](https://travis-ci.org/macobo/taara)
+
+Node library for snapshotting postgresql tables to disk/S3 and restoring them.
 
 ## Testing
 

@@ -162,5 +162,10 @@ describe("S3StorageEngine", () => {
         secretAccessKey: "bar"
     };
     const engine = new PublicS3StorageEngine(bucketName, config);
+
+    before((done) => {
+        engine.aws_s3.createBucket({Bucket: bucketName}, done);
+    });
+
     test(engine, "");
 });

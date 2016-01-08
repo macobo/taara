@@ -203,7 +203,7 @@ function emitterToPromise(emitter: s3.ProgressEmitter): Promise<void> {
 
 export class S3StorageEngine extends FileBasedStorageEngine {
     private s3: s3.Client;
-    private aws_s3: AWS.S3;
+    public aws_s3: AWS.S3;
 
     constructor(private bucket, s3Options: any, private _rootPath = "") {
         super();

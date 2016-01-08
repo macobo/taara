@@ -151,9 +151,10 @@ declare module "aws-sdk" {
 
         putObject(params: s3.PutObjectRequest, callback?: (err: any, data: any) => void): void;
 		getObject(params: s3.GetObjectRequest, callback?: (err: any, data: any) => void): void;
-		upload(params: s3.PutObjectRequest, callback?: (err: any, data: any) => void): void
-        deleteObject(params: s3.DeleteObjectRequest, callback?: (err: any, data: any) => void): void
-	}
+		upload(params: s3.PutObjectRequest, callback?: (err: any, data: any) => void): void;
+        deleteObject(params: s3.DeleteObjectRequest, callback?: (err: any, data: any) => void): void;
+	    createBucket(params: s3.CreateBucketRequest, callback?: (err: any, data: any) => void): void;
+    }
 
 	export class DynamoDB {
 		constructor(options?: any);
@@ -1096,6 +1097,17 @@ declare module "aws-sdk" {
             MFA?: string;
 			RequestPayer?: string;
 			VersionId?: string;
+        }
+
+        export interface CreateBucketRequest {
+            Bucket: string;
+            ACL?: string;
+            CreateBucketConfiguration?: { LocationConstraint: string };
+            GrantFullControl?: string;
+            GrantRead?: string;
+            GrantReadACP?: string;
+            GrantWrite?: string;
+            GrantWriteACP?: string;
         }
 	}
 }
