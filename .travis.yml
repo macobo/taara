@@ -1,0 +1,19 @@
+sudo: true
+
+language: node_js
+
+services:
+  - docker
+
+node_js:
+  - 'stable'
+  - '4'
+  - '0.10'
+
+before_script:
+  - npm install typescript@1.7.5 gulp -g
+  - npm install
+  - docker-compose up -d
+
+script:
+  - gulp test
