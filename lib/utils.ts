@@ -14,6 +14,9 @@ export function arrayify<T>(elem: T|Array<T>): Array<T> {
 
 export function splitAtLast(text: string, sep: string) {
     const index = text.lastIndexOf(sep);
+    if (index === -1) {
+        return [text, ""];
+    }
     return [text.substr(0, index), text.substr(index + 1)];
 }
 

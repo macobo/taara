@@ -148,6 +148,11 @@ declare module "aws-sdk" {
 	export class S3 {
 		constructor(options?: any);
 		public client: s3.Client;
+
+        putObject(params: s3.PutObjectRequest, callback?: (err: any, data: any) => void): void;
+		getObject(params: s3.GetObjectRequest, callback?: (err: any, data: any) => void): void;
+		upload(params: s3.PutObjectRequest, callback?: (err: any, data: any) => void): void
+        deleteObject(params: s3.DeleteObjectRequest, callback?: (err: any, data: any) => void): void
 	}
 
 	export class DynamoDB {
@@ -1085,5 +1090,12 @@ declare module "aws-sdk" {
 			VersionId?: string;
 		}
 
+        export interface DeleteObjectRequest {
+			Bucket: string;
+			Key: string;
+            MFA?: string;
+			RequestPayer?: string;
+			VersionId?: string;
+        }
 	}
 }

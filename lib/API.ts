@@ -82,11 +82,11 @@ abstract class FileBasedStorageEngine extends StorageEngine {
     protected abstract readContents(path: string): Promise<string>;
     /** Reads file from _source_ on storage and returns a promise with local destination. */
     protected abstract copyFileToLocalDisk(source: string, potentialDestination: string): Promise<string>;
-    protected abstract save(path: string, data: string): Promise<any>;
+    protected abstract uploadData(path: string, data: string): Promise<void>;
     protected abstract delete(path: string): Promise<void>;
 
-    protected saveFileTo(destination: string, source: string): Promise<any> {
-        return this.readContents(source).then((data) => this.save(destination, data));
+    protected uploadFile(destination: string, source: string): Promise<void> {
+        return this.readContents(source).then((data) => this.uploadData(destination, data));
     }
 
     protected abstract rootPath(): string
@@ -115,13 +115,13 @@ abstract class FileBasedStorageEngine extends StorageEngine {
     }
 
     saveSnapshot(identifier: SnapshotIdentifier, snapshotPath: string): Promise<void> {
-        return this.saveFileTo(this.path("snapshot", identifier), snapshotPath);
+        return this.uploadFile(this.path("snapshot", identifier), snapshotPath);
     }
 
     saveMetadata(metadata: StorageMetadata): Promise<StorageMetadata> {
         const path = this.path("metadata", metadata.identifier);
         const json = StorageMetadata.toJSON(metadata);
-        return this.save(path, json).then(() => metadata);
+        return this.uploadData(path, json).then(() => metadata);
     }
 
     deleteSnapshot(identifier: SnapshotIdentifier) {
@@ -155,13 +155,16 @@ export class FileSystemEngine extends FileBasedStorageEngine {
 
     protected ls(path: string): Promise<Array<FileDescriptor>> {
         const filesPromise = nodefn.call(fs.readdir, path);
-        return filesPromise.then((files) => files.map((f) => {
+        const filterFiles = (files) => files.map((f) => {
             const [filename, extension] = Utils.splitAtLast(f, ".");
             return {
                 filename: filename,
                 extension: extension
             };
-        }));
+        // Filter out all subdirs.
+        }).filter(({extension}) => extension !== "");
+
+        return filesPromise.then(filterFiles);
     }
 
     protected readContents(path: string): Promise<string> {
@@ -172,12 +175,12 @@ export class FileSystemEngine extends FileBasedStorageEngine {
         return when(source);
     }
 
-    protected save(filepath: string, contents: string): Promise<any> {
+    protected uploadData(filepath: string, contents: string): Promise<any> {
         this.createdir(filepath);
         return nodefn.call(fs.writeFile, filepath, contents);
     }
 
-    protected saveFileTo(destination: string, source: string): Promise<any> {
+    protected uploadFile(destination: string, source: string): Promise<any> {
         this.createdir(destination);
         const readStream = fs.createReadStream(source);
         const writeStream = fs.createWriteStream(destination);
@@ -198,29 +201,56 @@ function emitterToPromise(emitter: s3.ProgressEmitter): Promise<void> {
     return deferred.promise;
 }
 
-export abstract class S3StorageEngine extends FileBasedStorageEngine {
+export class S3StorageEngine extends FileBasedStorageEngine {
     private s3: s3.Client;
     private aws_s3: AWS.S3;
 
-    constructor(private bucket, private _rootPath) {
+    constructor(private bucket, s3Options: any, private _rootPath = "") {
         super();
-        this.s3 = s3.createClient({s3Options: {accessKeyId: "", secretAccessKey: ""}});
-        this.aws_s3 = this.s3.s3;
+        this.aws_s3 = new AWS.S3(s3Options);
+        this.s3 = s3.createClient({s3Client: this.aws_s3});
     }
 
     rootPath() { return this._rootPath; }
 
-    protected delete(path: string): Promise<void> {
-        const emitter = this.s3.deleteObjects({
-            Bucket: this.bucket,
-            Delete: {Objects: [{Key: path}]}
+    protected ls(keyPrefix: string): Promise<Array<FileDescriptor>> {
+        if (keyPrefix.length && keyPrefix.slice(-1) !== "/") {
+            keyPrefix += "/";
+        }
+        const emitter = this.s3.listObjects({
+            s3Params: {
+                Bucket: this.bucket,
+                Prefix: keyPrefix,
+                Delimiter: "/"
+            }
         });
-        return emitterToPromise(emitter);
+        const deferred = when.defer<Array<FileDescriptor>>();
+        const result: Array<FileDescriptor> = [];
+        emitter.on("error", deferred.reject);
+        emitter.on("end", () => deferred.resolve(result));
+        emitter.on("data", (data) => {
+            const list = <Array<{Key: string}>>data.Contents;
+            list.forEach(({Key}) => {
+                const basename = path.basename(Key);
+                const [filename, extension] = Utils.splitAtLast(basename, ".");
+                result.push({ filename: filename, extension: extension });
+            });
+        });
+        return deferred.promise;
+    }
+
+    protected delete(path: string): Promise<void> {
+        const params = {
+            Bucket: this.bucket,
+            Key: path
+        };
+        const deleteFn = (callback) => this.aws_s3.deleteObject(params, callback);
+        return nodefn.call(deleteFn).then(() => undefined);
     }
 
     protected readContents(path: string): Promise<string> {
         // Stub typing because no good types available.
-        const request = <any>this.aws_s3.client.getObject({Bucket: this.bucket, Key: path});
+        const request = <any>this.aws_s3.getObject({Bucket: this.bucket, Key: path});
         return Utils.streamToString(<stream.Readable>request.createReadStream());
     }
 
@@ -235,22 +265,25 @@ export abstract class S3StorageEngine extends FileBasedStorageEngine {
         return emitterToPromise(emitter).then(() => localPath);
     }
 
-    private saveStream(path: string, stream: stream.Readable): Promise<void> {
+    private saveStream(key: string, stream: stream.Readable): Promise<void> {
         const params = {
             Bucket: this.bucket,
-            Key: path
+            Key: key,
+            Body: stream
         };
-        return nodefn.call(this.aws_s3.client.upload, params);
+        // :TODO: figure out how to bind this without losing typing.
+        const upload = (callback) => this.aws_s3.upload(params, callback);
+        return nodefn.call(upload).then(() => undefined);
     }
 
-    protected save(path: string, data: string): Promise<any> {
-        const stream = Utils.makeReadStream(data);
-        return this.saveStream(path, stream);
+    protected uploadData(key: string, dataPath: string): Promise<void> {
+        const stream = Utils.makeReadStream(dataPath);
+        return this.saveStream(key, stream);
     }
 
-    protected saveFileTo(destination: string, localPath: string): Promise<any> {
+    protected uploadFile(key: string, localPath: string): Promise<void> {
         const stream = fs.createReadStream(localPath);
-        return this.saveStream(destination, stream);
+        return this.saveStream(key, stream);
     }
 }
 

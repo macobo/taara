@@ -40,6 +40,18 @@ declare module "s3" {
         defaultContentType?: string;
     }
 
+    interface ListDirParams {
+        recursive?: boolean;
+        s3Params?: {
+            Bucket: string;
+            Delimiter?: string;
+            EncodingType?: string;
+            Marker?: string;
+            MaxKeys?: number;
+            Prefix?: string;
+        }
+    }
+
     export interface ProgressEmitter extends events.EventEmitter {
         progressAmount: number;
         progressTotal: number;
@@ -52,7 +64,7 @@ declare module "s3" {
         deleteObjects(s3Params: DeleteS3Options): ProgressEmitter;
         uploadFile(params: {localFile: string, s3Params: AWS.s3.GetObjectRequest}): ProgressEmitter;
         downloadFile(params: {localFile: string, s3Params: S3Params}): ProgressEmitter;
-        listObjects(params: {recursive?: boolean, s3Params: S3Params}): ProgressEmitter;
+        listObjects(params: ListDirParams): ProgressEmitter;
         uploadDir(params: UploadDirParams): ProgressEmitter;
         downloadDir(params: DownloadDirParams): ProgressEmitter;
         deleteDir(s3Params: S3Params): ProgressEmitter;

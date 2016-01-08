@@ -5,3 +5,8 @@ postgres:
     POSTGRES_PASSWORD: test_password
   ports:
     - "8888:5432"
+
+fakes3:
+  image: lphoward/fake-s3
+  ports:
+    - "4569:4569"
