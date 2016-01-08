@@ -30,10 +30,10 @@ declare module "aws-sdk" {
 		xhrAsync?: boolean;
 		xhrWithCredentials?: boolean;
 	}
-	
+
 	export class Endpoint {
 		constructor(endpoint:string);
-		
+
 		host:string;
 		hostname:string;
 		href:string;
@@ -110,7 +110,7 @@ declare module "aws-sdk" {
 	export class SQS {
 		constructor(options?: any);
 		endpoint:Endpoint;
-		
+
 		addPermission(params: SQS.AddPermissionParams, callback: (err:Error, data:any) => void): void;
 		changeMessageVisibility(params: SQS.ChangeMessageVisibilityParams, callback: (err:Error, data:any) => void): void;
 		changeMessageVisibilityBatch(params: SQS.ChangeMessageVisibilityBatchParams, callback: (err:Error, data:SQS.ChangeMessageVisibilityBatchResponse) => void): void;
@@ -127,7 +127,7 @@ declare module "aws-sdk" {
 		removePermission(params: {QueueUrl: string, Label: string}, callback: (err: Error, data: any) => void): void;
 		sendMessage(params: SQS.SendMessageParams, callback: (err: Error, data: SQS.SendMessageResult) => void): void;
 		sendMessageBatch(params: SQS.SendMessageBatchParams, callback: (err: Error, data: SQS.SendMessageBatchResult) => void): void;
-		setQueueAttributes(params: SQS.SetQueueAttributesParams, callback: (err: Error, data: any) => void): void;			
+		setQueueAttributes(params: SQS.SetQueueAttributesParams, callback: (err: Error, data: any) => void): void;
 	}
 
 	export class SES {
@@ -155,7 +155,7 @@ declare module "aws-sdk" {
 	}
 
 	export module SQS {
-		
+
 		export interface SqsOptions {
 			params?: any;
 			endpoint?: string;
@@ -182,25 +182,25 @@ declare module "aws-sdk" {
 			signatureVersion?: string;
 			signatureCache?: boolean;
 		}
-		
+
 		export interface AddPermissionParams {
 			QueueUrl: string;
 			Label: string;
 			AWSAccountIds:string[];
 			Actions:string[];
 		}
-		
-		export interface ChangeMessageVisibilityParams { 
-			QueueUrl: string, 
-			ReceiptHandle: string, 
-			VisibilityTimeout: number 
+
+		export interface ChangeMessageVisibilityParams {
+			QueueUrl: string,
+			ReceiptHandle: string,
+			VisibilityTimeout: number
 		}
-		
-		export interface ChangeMessageVisibilityBatchParams { 
-			QueueUrl: string, 
+
+		export interface ChangeMessageVisibilityBatchParams {
+			QueueUrl: string,
 			Entries: { Id: string; ReceiptHandle: string; VisibilityTimeout?: number; }[]
 		}
-		
+
 		export interface ChangeMessageVisibilityBatchResponse {
 			Successful: { Id:string }[];
 			Failed: BatchResultErrorEntry[];
@@ -253,7 +253,7 @@ declare module "aws-sdk" {
 			QueueName: string;
 			Attributes: QueueAttributes;
 		}
-		
+
 		export interface QueueAttributes {
 			[name:string]: any;
 			DelaySeconds?: number;
@@ -264,21 +264,21 @@ declare module "aws-sdk" {
 			VisibilityTimeout?: number;
 			RedrivePolicy?: any;
 		}
-		
+
 		export interface GetQueueAttributesParams {
 			QueueUrl: string;
 			AttributeNames: string[];
 		}
-		
+
 		export interface GetQueueAttributesResult {
 			Attributes: {[name:string]: string};
 		}
-		
+
 		export interface GetQueueUrlParams {
 			QueueName: string;
 			QueueOwnerAWSAccountId?: string;
 		}
-		
+
 		export interface SendMessageResult {
 			MessageId: string;
 			MD5OfMessageBody: string;
@@ -301,12 +301,12 @@ declare module "aws-sdk" {
 
 		export interface MessageAttribute {
 			StringValue?: string;
-			BinaryValue?: any; //(Buffer, Typed Array, Blob, String) 
+			BinaryValue?: any; //(Buffer, Typed Array, Blob, String)
 			StringListValues?: string[];
 			BinaryListValues?: any[];
 			DataType: string;
 		}
-				
+
 		export interface DeleteMessageBatchResult {
 			Successful: DeleteMessageBatchResultEntry[];
 			Failed: BatchResultErrorEntry[];
@@ -338,7 +338,7 @@ declare module "aws-sdk" {
 		export interface CreateQueueResult {
 			QueueUrl: string;
 		}
-		
+
 		export interface SetQueueAttributesParams {
 			QueueUrl: string;
 			Attributes: QueueAttributes;
@@ -1040,9 +1040,10 @@ declare module "aws-sdk" {
 		export interface Client {
 			config: ClientConfig;
 
-			putObject(params: PutObjectRequest, callback: (err: any, data: any) => void): void;
-			getObject(params: GetObjectRequest, callback: (err: any, data: any) => void): void;
-		}
+			putObject(params: PutObjectRequest, callback?: (err: any, data: any) => void): void;
+			getObject(params: GetObjectRequest, callback?: (err: any, data: any) => void): void;
+			upload(params: PutObjectRequest, callback?: (err: any, data: any) => void)
+        }
 
 		export interface PutObjectRequest {
 			ACL?: string;

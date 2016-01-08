@@ -1,9 +1,11 @@
 /// <reference path="../typings/tsd.d.ts" />
 
+import * as AWS from "aws-sdk";
 import {spawn} from "child_process";
 import * as fs from "fs";
 import * as moment from "moment";
 import * as path from "path";
+import * as s3 from "s3";
 import * as stream from "stream";
 import VError = require("verror");
 import * as when from "when";
@@ -67,7 +69,7 @@ interface FileDescriptor {
 
 export abstract class StorageEngine {
     abstract list(): Promise<Array<SnapshotIdentifier>>; // :TODO: Should this contain some extra info?
-    abstract loadSnapshot(identifier: SnapshotIdentifier): Promise<stream.Readable>;
+    abstract loadSnapshot(identifier: SnapshotIdentifier, outpath: string): Promise<string>;
     abstract loadMetadata(identifier: SnapshotIdentifier): Promise<StorageMetadata>;
     abstract saveSnapshot(identifier: SnapshotIdentifier, snapshotPath: string): Promise<any>; // Promise<stats>
     abstract saveMetadata(metadata: StorageMetadata): Promise<StorageMetadata>;
@@ -77,10 +79,15 @@ export abstract class StorageEngine {
 
 abstract class FileBasedStorageEngine extends StorageEngine {
     protected abstract ls(path: string): Promise<Array<FileDescriptor>>;
-    protected abstract read(path: string): Promise<stream.Readable>;
-    protected abstract saveFileFrom(destination: string, source: string): Promise<any>;
+    protected abstract readContents(path: string): Promise<string>;
+    /** Reads file from _source_ on storage and returns a promise with local destination. */
+    protected abstract copyFileToLocalDisk(source: string, potentialDestination: string): Promise<string>;
     protected abstract save(path: string, data: string): Promise<any>;
     protected abstract delete(path: string): Promise<void>;
+
+    protected saveFileTo(destination: string, source: string): Promise<any> {
+        return this.readContents(source).then((data) => this.save(destination, data));
+    }
 
     protected abstract rootPath(): string
 
@@ -94,23 +101,21 @@ abstract class FileBasedStorageEngine extends StorageEngine {
 
     list(): Promise<Array<SnapshotIdentifier>> {
         const fileList: Promise<Array<FileDescriptor>> = this.ls(this.path("metadata"));
-        const getIdentifiers = (files: Array<FileDescriptor>) => files.map((f) => getIdentifier(f.filename));
-        return fileList.then(getIdentifiers);
+        return fileList.then((files) => files.map((f) => getIdentifier(f.filename)));
     }
 
-    loadSnapshot(identifier: SnapshotIdentifier): Promise<stream.Readable> {
-        return this.read(this.path("snapshot", identifier));
+    loadSnapshot(identifier: SnapshotIdentifier, outfile: string): Promise<string> {
+        return this.copyFileToLocalDisk(this.path("snapshot", identifier), outfile);
     }
 
     loadMetadata(identifier: SnapshotIdentifier): Promise<StorageMetadata> {
         const path = this.path("metadata", identifier);
-        return this.read(path)
-          .then(Utils.streamToString)
-          .then(StorageMetadata.fromJson); // when.try?
+        return this.readContents(path)
+          .then(StorageMetadata.fromJson);
     }
 
     saveSnapshot(identifier: SnapshotIdentifier, snapshotPath: string): Promise<void> {
-        return this.saveFileFrom(this.path("snapshot", identifier), snapshotPath);
+        return this.saveFileTo(this.path("snapshot", identifier), snapshotPath);
     }
 
     saveMetadata(metadata: StorageMetadata): Promise<StorageMetadata> {
@@ -159,9 +164,12 @@ export class FileSystemEngine extends FileBasedStorageEngine {
         }));
     }
 
-    protected read(path: string): Promise<stream.Readable> {
-        const reader = fs.createReadStream(path);
-        return when(reader);
+    protected readContents(path: string): Promise<string> {
+        return when.attempt(() => fs.readFileSync(path, "utf-8"));
+    }
+
+    protected copyFileToLocalDisk(source: string, potentialDestination: string): Promise<string> {
+        return when(source);
     }
 
     protected save(filepath: string, contents: string): Promise<any> {
@@ -169,7 +177,7 @@ export class FileSystemEngine extends FileBasedStorageEngine {
         return nodefn.call(fs.writeFile, filepath, contents);
     }
 
-    protected saveFileFrom(destination: string, source: string): Promise<any> {
+    protected saveFileTo(destination: string, source: string): Promise<any> {
         this.createdir(destination);
         const readStream = fs.createReadStream(source);
         const writeStream = fs.createWriteStream(destination);
@@ -180,6 +188,69 @@ export class FileSystemEngine extends FileBasedStorageEngine {
         writeStream.on("error", deferred.reject);
         readStream.on("error", deferred.reject);
         return deferred.promise;
+    }
+}
+
+function emitterToPromise(emitter: s3.ProgressEmitter): Promise<void> {
+    const deferred = when.defer<void>();
+    emitter.on("error", deferred.reject);
+    emitter.on("end", deferred.resolve);
+    return deferred.promise;
+}
+
+export abstract class S3StorageEngine extends FileBasedStorageEngine {
+    private s3: s3.Client;
+    private aws_s3: AWS.S3;
+
+    constructor(private bucket, private _rootPath) {
+        super();
+        this.s3 = s3.createClient({s3Options: {accessKeyId: "", secretAccessKey: ""}});
+        this.aws_s3 = this.s3.s3;
+    }
+
+    rootPath() { return this._rootPath; }
+
+    protected delete(path: string): Promise<void> {
+        const emitter = this.s3.deleteObjects({
+            Bucket: this.bucket,
+            Delete: {Objects: [{Key: path}]}
+        });
+        return emitterToPromise(emitter);
+    }
+
+    protected readContents(path: string): Promise<string> {
+        // Stub typing because no good types available.
+        const request = <any>this.aws_s3.client.getObject({Bucket: this.bucket, Key: path});
+        return Utils.streamToString(<stream.Readable>request.createReadStream());
+    }
+
+    protected copyFileToLocalDisk(source: string, localPath: string): Promise<string> {
+        const emitter = this.s3.downloadFile({
+            localFile: localPath,
+            s3Params: {
+                Bucket: this.bucket,
+                Key: source
+            }
+        });
+        return emitterToPromise(emitter).then(() => localPath);
+    }
+
+    private saveStream(path: string, stream: stream.Readable): Promise<void> {
+        const params = {
+            Bucket: this.bucket,
+            Key: path
+        };
+        return nodefn.call(this.aws_s3.client.upload, params);
+    }
+
+    protected save(path: string, data: string): Promise<any> {
+        const stream = Utils.makeReadStream(data);
+        return this.saveStream(path, stream);
+    }
+
+    protected saveFileTo(destination: string, localPath: string): Promise<any> {
+        const stream = fs.createReadStream(localPath);
+        return this.saveStream(destination, stream);
     }
 }
 

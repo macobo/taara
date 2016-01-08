@@ -4,7 +4,6 @@ import * as moment from "moment";
 import * as temp from "temp";
 
 import * as API from "../lib/API";
-import * as Utils from "../lib/utils";
 
 temp.track();
 
@@ -47,7 +46,7 @@ describe("FileSystemEngine", () => {
     class PublicFileSystemEngine extends API.FileSystemEngine {
         public delete(path: string) { return super.delete(path); }
         public ls(path: string) { return super.ls(path); }
-        public read(path: string) { return super.read(path); }
+        public readContents(path: string) { return super.readContents(path); }
         public save(path: string, content: string) {
             return super.save(path, content);
         }
@@ -83,8 +82,7 @@ describe("FileSystemEngine", () => {
         });
 
         it("should be able to read the file", (done) => {
-            engine.read(rootPath + "/file.ext")
-                .then(Utils.streamToString)
+            engine.readContents(rootPath + "/file.ext")
                 .then((contents) => {
                     expect(contents).to.eql("filecontent");
                 })

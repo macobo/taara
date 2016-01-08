@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as temp from "temp";
 import * as stream from "stream";
 import {Promise, defer} from "when";
+import * as nodefn from "when/node";
 
 export function arrayify<T>(elem: T|Array<T>): Array<T> {
     if (elem instanceof Array) {
@@ -47,5 +48,8 @@ export function streamToFile(inStream: stream.Readable, path?: string): Promise<
     writeStream.on("finish", () => deferred.resolve(path));
     inStream.pipe(writeStream);
     return deferred.promise;
+}
 
+export function tryUnlink(path: string): Promise<void> {
+    return nodefn.call(fs.unlink, path).catch(() => undefined);
 }

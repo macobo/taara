@@ -1,8 +1,6 @@
 /// <reference path="../typings/tsd.d.ts" />
-import * as fs from "fs";
 import * as temp from "temp";
 import {Promise} from "when";
-import * as nodefn from "when/node";
 
 import {
     DatabaseEngine,
@@ -10,7 +8,9 @@ import {
     StorageMetadata,
     SnapshotIdentifier
 } from "./API";
-import {arrayify, streamToFile} from "./utils";
+import {arrayify, tryUnlink} from "./utils";
+
+temp.track();
 
 var tempFileOptions: temp.AffixOptions = {
     prefix: "taara-restore-"
@@ -52,7 +52,7 @@ export function storeSnapshot(
         .dump(tableList, tempFilePath)
         .then(() => storageEngine.saveSnapshot(identifier, tempFilePath))
         .then(() => storageEngine.saveMetadata(storedData))
-        .finally(() => nodefn.call(fs.unlink, tempFilePath));
+        .finally(() => tryUnlink(tempFilePath));
 }
 
 /**
@@ -72,11 +72,10 @@ export function restoreSnapshot(
     return storageEngine
         .loadMetadata(identifier)
         .tap((metadata) => { storageMetadata = metadata; })
-        .then((metadata) => storageEngine.loadSnapshot(metadata.identifier))
-        .then((stream) => streamToFile(stream, dumpFileLocation))
-        .then(() => dbEngine.restore(dumpFileLocation))
+        .then((metadata) => storageEngine.loadSnapshot(metadata.identifier, dumpFileLocation))
+        .then((path) => dbEngine.restore(path))
         .then(() => storageMetadata)
-        .finally(() => nodefn.call(fs.unlink, dumpFileLocation));
+        .finally(() => tryUnlink(dumpFileLocation));
 }
 
 export function deleteSnapshot(

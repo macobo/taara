@@ -13,3 +13,4 @@
 /// <reference path="lodash/lodash.d.ts" />
 /// <reference path="pg/pg.d.ts" />
 /// <reference path="aws-sdk/aws-sdk.d.ts" />
+/// <reference path="s3/s3.d.ts" />
