@@ -132,8 +132,6 @@ describe("FileSystemEngine", () => {
 
     const rootPath = temp.mkdirSync("taara-fs-test-");
     test(new PublicFileSystemEngine(rootPath), rootPath);
-
-    // it("should fail to store the same snapshot a second time.")
 });
 
 describe("S3StorageEngine", () => {

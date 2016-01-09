@@ -74,8 +74,18 @@ describe("Core module", () => {
 
     after(() => pgClient.end());
 
+    it("should error if no storage engine is configured", (done) => {
+        expect(taara.listSnapshots())
+            .to.eventually.be.rejectedWith(/No taara storage engine/)
+            .notify(done);
+    });
+
+    it("should allow setting a storage engine", () => {
+        taara.useStorageEngine(storageEngine);
+    });
+
     it("should be able to snapshot multiple tables", (done) => {
-        const promise = taara.storeSnapshot(["table_a", "table_b"], {my: "metadata"}, storageEngine, dbEngine);
+        const promise = taara.storeSnapshot(["table_a", "table_b"], {my: "metadata"}, dbEngine);
         promise.then((metadata) => { storageMetadata = metadata; }).done(done);
     });
 
@@ -86,7 +96,7 @@ describe("Core module", () => {
     });
 
     it("fetching metadata should yield the same metadata", (done) => {
-        const promise = taara.getMetadata(storageMetadata.identifier, storageEngine);
+        const promise = taara.getMetadata(storageMetadata.identifier);
 
         promise.then((metadata) => {
             assertSame(metadata.identifier, storageMetadata.identifier);
@@ -96,7 +106,7 @@ describe("Core module", () => {
     });
 
     it("should list the same snapshot", (done) => {
-        taara.listSnapshots(storageEngine)
+        taara.listSnapshots()
             .then((ids) => {
                 expect(ids.length).to.equal(1);
                 assertSame(ids[0], storageMetadata.identifier);
@@ -106,26 +116,26 @@ describe("Core module", () => {
 
     it("should succeed in restoring tables", (done) => {
         const promise = query("DROP TABLE table_a, table_b CASCADE")
-            .then(() => taara.restoreSnapshot(storageMetadata.identifier, storageEngine, dbEngine));
+            .then(() => taara.restoreSnapshot(storageMetadata.identifier, dbEngine));
         expect(promise).to.eventually.be.fulfilled.notify(done);
     });
 
     it("should fail to restore tables if they exist", (done) => {
-        const promise = taara.restoreSnapshot(storageMetadata.identifier, storageEngine, dbEngine);
+        const promise = taara.restoreSnapshot(storageMetadata.identifier, dbEngine);
         expect(promise).to.eventually.be.rejectedWith(/relation .* already exists/).notify(done);
     });
 
     it("should succeed in deleting a snapshot", (done) => {
-        const promise = taara.deleteSnapshot(storageMetadata.identifier, storageEngine);
+        const promise = taara.deleteSnapshot(storageMetadata.identifier);
         expect(promise).to.eventually.be.fulfilled.notify(done);
     });
 
     it("should list no snapshots", (done) => {
-        expect(taara.listSnapshots(storageEngine)).to.eventually.be.empty.notify(done);
+        expect(taara.listSnapshots()).to.eventually.be.empty.notify(done);
     });
 
     it("should fail to fetch metadata for deleted snapshot", (done) => {
-        const promise = taara.getMetadata(storageMetadata.identifier, storageEngine);
+        const promise = taara.getMetadata(storageMetadata.identifier);
         expect(promise).to.eventually.be.rejected.notify(done);
     });
 });

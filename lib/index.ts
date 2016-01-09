@@ -1,6 +1,7 @@
 /// <reference path="../typings/tsd.d.ts" />
+import * as _ from "lodash";
 import * as temp from "temp";
-import {Promise} from "when";
+import {Promise, attempt} from "when";
 
 import {
     DatabaseEngine,
@@ -21,14 +22,28 @@ temp.track();
 var tempFileOptions: temp.AffixOptions = {
     prefix: "taara-restore-"
 };
+var _storageEngine: StorageEngine = null;
 
 export function setTempDir(dirPath: string) {
     tempFileOptions.dir = dirPath;
 }
 
+
+/** Configure a storage engine to store snapshots to. */
+export function useStorageEngine(storageEngine: StorageEngine) {
+    _storageEngine = storageEngine;
+}
+
+function getStorageEngine(): StorageEngine {
+    if (_.isNull(_storageEngine)) {
+        throw new Error("No taara storage engine configured. Please use `taara.useStorageEngine`.");
+    }
+    return _storageEngine;
+}
+
 /** Lists all snapshots stored in storageEngine to date. */
-export function listSnapshots(storageEngine: StorageEngine): Promise<Array<SnapshotIdentifier>> {
-    return storageEngine.list();
+export function listSnapshots(): Promise<Array<SnapshotIdentifier>> {
+    return attempt(getStorageEngine).then((engine) => engine.list());
 }
 
 /**
@@ -41,7 +56,6 @@ export function listSnapshots(storageEngine: StorageEngine): Promise<Array<Snaps
 export function storeSnapshot(
     tables: string|Array<string>,
     userMetadata: Object,
-    storageEngine: StorageEngine,
     dbEngine: DatabaseEngine
 ): Promise<StorageMetadata> {
     const tableList = arrayify(tables);
@@ -56,8 +70,8 @@ export function storeSnapshot(
     // This writes the dump to two files in case of a on-disk store, can be optimized if needed.
     return dbEngine
         .dump(tableList, tempFilePath)
-        .then(() => storageEngine.saveSnapshot(identifier, tempFilePath))
-        .then(() => storageEngine.saveMetadata(storedData))
+        .then(() => getStorageEngine().saveSnapshot(identifier, tempFilePath))
+        .then(() => getStorageEngine().saveMetadata(storedData))
         .finally(() => tryUnlink(tempFilePath));
 }
 
@@ -70,32 +84,34 @@ export function storeSnapshot(
  */
 export function restoreSnapshot(
     identifier: SnapshotIdentifier,
-    storageEngine: StorageEngine,
     dbEngine: DatabaseEngine
 ): Promise<StorageMetadata> {
     var storageMetadata;
     const dumpFileLocation = temp.path(tempFileOptions);
-    return storageEngine
-        .loadMetadata(identifier)
+    return attempt(getStorageEngine)
+        .then((storageEngine) => storageEngine.loadMetadata(identifier))
         .tap((metadata) => { storageMetadata = metadata; })
-        .then((metadata) => storageEngine.loadSnapshot(metadata.identifier, dumpFileLocation))
+        .then((metadata) => getStorageEngine().loadSnapshot(metadata.identifier, dumpFileLocation))
         .then((path) => dbEngine.restore(path))
         .then(() => storageMetadata)
         .finally(() => tryUnlink(dumpFileLocation));
 }
 
+/**
+ * Deletes an existing snapshot.
+ *
+ * @return a promise which will fail if storage engine is not configured or snapshot did not exist.
+ */
 export function deleteSnapshot(
-    identifier: SnapshotIdentifier,
-    storageEngine: StorageEngine
+    identifier: SnapshotIdentifier
 ): Promise<void> {
-    return storageEngine
-        .deleteMetadata(identifier)
-        .then(() => storageEngine.deleteSnapshot(identifier));
+    return attempt(getStorageEngine)
+        .tap((storageEngine) => storageEngine.deleteMetadata(identifier))
+        .then((storageEngine) => storageEngine.deleteSnapshot(identifier));
 }
 
 export function getMetadata(
-    identifier: SnapshotIdentifier,
-    storageEngine: StorageEngine
+    identifier: SnapshotIdentifier
 ): Promise<StorageMetadata> {
-    return storageEngine.loadMetadata(identifier);
+    return attempt(getStorageEngine).then((engine) => engine.loadMetadata(identifier));
 }
