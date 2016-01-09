@@ -30,9 +30,8 @@ describe("PostgresDatabaseEngine", () => {
 
     it("should fail to create a stream when cannot connect to a database", (done) => {
         const params = <API.PostgresAuthParams> _.merge({}, connectionParams, {port: 9999});
-        const dbEngine = new API.PostgresEngine(params);
 
-        dbEngine.dump(["table_foobar"], testDump)
+        API.PostgresEngine.dump(params, ["table_foobar"], testDump)
             .then(
                 (value) => { throw Error("this should fail"); },
                 (error) => expectErrorToContain(error, [
@@ -46,8 +45,7 @@ describe("PostgresDatabaseEngine", () => {
     });
 
     it("should fail when the table being dumped doesn't exist", (done) => {
-        const dbEngine = new API.PostgresEngine(connectionParams);
-        const promise = dbEngine.dump(["table_foobar"], testDump);
+        const promise = API.PostgresEngine.dump(connectionParams, ["table_foobar"], testDump);
 
         expect(promise)
             .to.eventually.be.rejectedWith(/Could not dump tables 'table_foobar': pg_dump: No matching tables were found/)
@@ -56,7 +54,6 @@ describe("PostgresDatabaseEngine", () => {
 
     describe("dump-and-restore", () => {
         var pgClient: pg.Client;
-        var dbEngine: API.PostgresEngine;
         const nRows = 10000;
 
         function query(query: string): Promise<pg.QueryResult> {
@@ -78,7 +75,6 @@ describe("PostgresDatabaseEngine", () => {
         }
 
         before((done) => {
-            dbEngine = new API.PostgresEngine(connectionParams);
             pgClient = new pg.Client(connectionParams);
             pgClient.connect(done);
         });
@@ -110,15 +106,15 @@ describe("PostgresDatabaseEngine", () => {
         after(() => pgClient.end());
 
         it("should be able to dump a table", (done) => {
-            expect(dbEngine.dump(["dumped_table"], testDump))
+            expect(API.PostgresEngine.dump(connectionParams, ["dumped_table"], testDump))
                 .to.eventually.be.fulfilled
                 .notify(done);
         });
 
         it("should be able to restore a table", (done) => {
-            dbEngine.dump(["dumped_table"], testDump)
+            API.PostgresEngine.dump(connectionParams, ["dumped_table"], testDump)
                 .then(() => query("DROP TABLE dumped_table;"))
-                .then(() => dbEngine.restore(testDump))
+                .then(() => API.PostgresEngine.restore(connectionParams, testDump))
                 .then(() => fs.unlinkSync(testDump))
                 .then(() => expect(countRows("dumped_table")).to.eventually.eql(nRows).notify(done));
         });

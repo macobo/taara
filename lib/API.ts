@@ -287,11 +287,6 @@ export class S3StorageEngine extends FileBasedStorageEngine {
     }
 }
 
-export abstract class DatabaseEngine {
-    abstract dump(tables: Array<string>, snapshotPath: string): Promise<void>;
-    abstract restore(snapshotPath: string): Promise<void>; // stats?
-}
-
 export interface PostgresAuthParams {
     database: string;
     user: string;
@@ -300,26 +295,22 @@ export interface PostgresAuthParams {
     password?: string;
 }
 
-export class PostgresEngine extends DatabaseEngine {
-    constructor(private auth: PostgresAuthParams) {
-        super();
-    }
-
-    authArgs(): [Array<string>, Object] {
+export class PostgresEngine {
+    static authArgs(auth: PostgresAuthParams): [Array<string>, Object] {
         const result = Array<string>();
         var env: Object = {};
-        result.push("-d", this.auth.database);
-        result.push("-h", this.auth.host);
-        result.push("-p", this.auth.port.toString());
-        result.push("-U", this.auth.user);
-        if (this.auth.password) {
-            env = {PGPASSWORD: this.auth.password};
+        result.push("-d", auth.database);
+        result.push("-h", auth.host);
+        result.push("-p", auth.port.toString());
+        result.push("-U", auth.user);
+        if (auth.password) {
+            env = {PGPASSWORD: auth.password};
         }
         return [result, env];
     }
 
-    dump(tables: Array<string>, outpath: string): Promise<void> {
-        var [params, env] = this.authArgs();
+    static dump(auth: PostgresAuthParams, tables: Array<string>, outpath: string): Promise<void> {
+        var [params, env] = PostgresEngine.authArgs(auth);
         params.push("-F", "custom");
         for (let table of tables) {
             params.push("-t", table);
@@ -347,8 +338,8 @@ export class PostgresEngine extends DatabaseEngine {
         return deferred.promise;
     }
 
-    restore(dumpPath: string): Promise<void> {
-        var [params, env] = this.authArgs();
+    static restore(auth: PostgresAuthParams, dumpPath: string): Promise<void> {
+        var [params, env] = PostgresEngine.authArgs(auth);
         params.push("-F", "custom");
         params.push("--exit-on-error");
         params.push("--single-transaction");

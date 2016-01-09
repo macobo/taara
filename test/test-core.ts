@@ -24,7 +24,6 @@ describe("Core module", () => {
     };
 
     var pgClient: pg.Client;
-    var dbEngine: API.DatabaseEngine;
     var storageEngine: API.StorageEngine;
     var storageMetadata: API.StorageMetadata;
 
@@ -47,7 +46,6 @@ describe("Core module", () => {
 
     before((done) => {
         const rootDir = temp.mkdirSync("taara-test-");
-        dbEngine = new API.PostgresEngine(connectionParams);
         storageEngine = new API.FileSystemEngine(rootDir);
         pgClient = new pg.Client(connectionParams);
         pgClient.connect(done);
@@ -85,7 +83,7 @@ describe("Core module", () => {
     });
 
     it("should be able to snapshot multiple tables", (done) => {
-        const promise = taara.storeSnapshot(["table_a", "table_b"], {my: "metadata"}, dbEngine);
+        const promise = taara.storeSnapshot(["table_a", "table_b"], {my: "metadata"}, connectionParams);
         promise.then((metadata) => { storageMetadata = metadata; }).done(done);
     });
 
@@ -116,12 +114,12 @@ describe("Core module", () => {
 
     it("should succeed in restoring tables", (done) => {
         const promise = query("DROP TABLE table_a, table_b CASCADE")
-            .then(() => taara.restoreSnapshot(storageMetadata.identifier, dbEngine));
+            .then(() => taara.restoreSnapshot(storageMetadata.identifier, connectionParams));
         expect(promise).to.eventually.be.fulfilled.notify(done);
     });
 
     it("should fail to restore tables if they exist", (done) => {
-        const promise = taara.restoreSnapshot(storageMetadata.identifier, dbEngine);
+        const promise = taara.restoreSnapshot(storageMetadata.identifier, connectionParams);
         expect(promise).to.eventually.be.rejectedWith(/relation .* already exists/).notify(done);
     });
 

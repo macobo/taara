@@ -4,16 +4,18 @@ import * as temp from "temp";
 import {Promise, attempt} from "when";
 
 import {
-    DatabaseEngine,
     StorageEngine,
     StorageMetadata,
-    SnapshotIdentifier
+    SnapshotIdentifier,
+    PostgresAuthParams,
+    PostgresEngine
 } from "./API";
 import {arrayify, tryUnlink} from "./utils";
 
 export {
     FileSystemEngine,
-    S3StorageEngine
+    S3StorageEngine,
+    PostgresAuthParams
 } from "./API";
 
 // Should we leak any temporary files, delete them!
@@ -56,7 +58,7 @@ export function listSnapshots(): Promise<Array<SnapshotIdentifier>> {
 export function storeSnapshot(
     tables: string|Array<string>,
     userMetadata: Object,
-    dbEngine: DatabaseEngine
+    dbAuthParams: PostgresAuthParams
 ): Promise<StorageMetadata> {
     const tableList = arrayify(tables);
     const identifier = new SnapshotIdentifier(tableList);
@@ -68,8 +70,8 @@ export function storeSnapshot(
     };
 
     // This writes the dump to two files in case of a on-disk store, can be optimized if needed.
-    return dbEngine
-        .dump(tableList, tempFilePath)
+    return PostgresEngine
+        .dump(dbAuthParams, tableList, tempFilePath)
         .then(() => getStorageEngine().saveSnapshot(identifier, tempFilePath))
         .then(() => getStorageEngine().saveMetadata(storedData))
         .finally(() => tryUnlink(tempFilePath));
@@ -84,7 +86,7 @@ export function storeSnapshot(
  */
 export function restoreSnapshot(
     identifier: SnapshotIdentifier,
-    dbEngine: DatabaseEngine
+    dbAuthParams: PostgresAuthParams
 ): Promise<StorageMetadata> {
     var storageMetadata;
     const dumpFileLocation = temp.path(tempFileOptions);
@@ -92,7 +94,7 @@ export function restoreSnapshot(
         .then((storageEngine) => storageEngine.loadMetadata(identifier))
         .tap((metadata) => { storageMetadata = metadata; })
         .then((metadata) => getStorageEngine().loadSnapshot(metadata.identifier, dumpFileLocation))
-        .then((path) => dbEngine.restore(path))
+        .then((path) => PostgresEngine.restore(dbAuthParams, path))
         .then(() => storageMetadata)
         .finally(() => tryUnlink(dumpFileLocation));
 }
