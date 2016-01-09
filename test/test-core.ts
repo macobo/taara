@@ -56,11 +56,12 @@ describe("Core module", () => {
     before((done) => {
         const query = `
             DROP TABLE IF EXISTS table_a, table_b CASCADE;
-            CREATE TABLE table_a (x INTEGER PRIMARY KEY, y INTEGER);
-            CREATE TABLE table_b (
+            CREATE TABLE IF NOT EXISTS table_a (x INTEGER PRIMARY KEY, y INTEGER);
+            CREATE TABLE IF NOT EXISTS table_b (
                 x INTEGER REFERENCES table_a(x),
                 w INTEGER
             );
+            TRUNCATE TABLE table_a, table_b;
 
             INSERT INTO table_a
             SELECT index, index FROM generate_series(1, 100) AS index;

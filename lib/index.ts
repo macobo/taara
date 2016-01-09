@@ -10,6 +10,12 @@ import {
 } from "./API";
 import {arrayify, tryUnlink} from "./utils";
 
+export {
+    FileSystemEngine,
+    S3StorageEngine
+} from "./API";
+
+// Should we leak any temporary files, delete them!
 temp.track();
 
 var tempFileOptions: temp.AffixOptions = {
