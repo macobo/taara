@@ -13,7 +13,7 @@ import * as nodefn from "when/node";
 
 import * as Utils from "./utils";
 
-type Promise<T> = when.Promise<T>;
+export type Promise<T> = when.Promise<T>;
 
 // An identifier consisting of a datetime and an tablename, uniquely identifying a single backup.
 export class SnapshotIdentifier {
@@ -77,7 +77,7 @@ export abstract class StorageEngine {
     abstract deleteMetadata(identifier: SnapshotIdentifier): Promise<void>;
 }
 
-abstract class FileBasedStorageEngine extends StorageEngine {
+export abstract class FileBasedStorageEngine extends StorageEngine {
     protected abstract ls(path: string): Promise<Array<FileDescriptor>>;
     protected abstract readContents(path: string): Promise<string>;
     /** Reads file from _source_ on storage and returns a promise with local destination. */

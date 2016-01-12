@@ -1,4 +1,6 @@
+var _      = require('lodash');
 var gulp   = require('gulp');
+var merge  = require('merge2');
 var tsc    = require('gulp-typescript');
 var shell  = require('gulp-shell');
 var runseq = require('run-sequence');
@@ -10,7 +12,7 @@ var projectConfig = {
   target: "ES5",
   module: "commonjs"
 }
-var tsProject = tsc.createProject(projectConfig);
+var tsProject = tsc.createProject(_.defaults(projectConfig, {declaration: true}));
 var tsTestProject = tsc.createProject(projectConfig);
 
 gulp.task('default', ['lint', 'buildrun']);
@@ -38,9 +40,13 @@ gulp.task('watch', function () {
 gulp.task('build', ['compile', 'lint']);
 
 gulp.task('compile:app', function() {
-  return gulp.src(__dirname+"/lib/*.ts")
-    .pipe(tsc(tsProject))
-    .js.pipe(gulp.dest(__dirname + '/bin/lib'))
+  var tsResult = gulp
+    .src(__dirname+"/lib/*.ts")
+    .pipe(tsc(tsProject));
+  return merge([
+    tsResult.js.pipe(gulp.dest(__dirname + '/bin')),
+    tsResult.dts.pipe(gulp.dest(__dirname + '/bin'))
+  ]);
 });
 gulp.task('compile:test', function() {
   return gulp.src(__dirname+"/test/*.ts")

@@ -2,6 +2,16 @@
   "name": "taara",
   "version": "0.0.0",
   "author": "Karl-Aksel Puulmann",
+  "description": "Back up PostgreSQL tables to S3 or disk.",
+  "homepage": "https://github.com/macobo/taara",
+  "license": "MIT",
+  "keywords": [
+    "database",
+    "postgresql",
+    "backup",
+    "aws",
+    "s3"
+  ],
   "dependencies": {
     "aws-sdk": "^2.2.27",
     "moment": "^2.11.0",
@@ -19,12 +29,18 @@
     "gulp-tslint": "^4.2.2",
     "gulp-typescript": "^2.10.0",
     "lodash": "^3.10.1",
+    "merge2": "^0.3.6",
     "mocha": "*",
     "pg": "^4.4.3",
     "run-sequence": "^1.1.1",
     "tslint": "^3.2.1",
     "typescript": "^1.7.5"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/macobo/taara"
+  },
+  "main": "bin/lib/index.js",
   "scripts": {
     "test": "gulp test"
   }
