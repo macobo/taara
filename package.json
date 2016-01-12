@@ -1,6 +1,6 @@
 {
   "name": "taara",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "author": "Karl-Aksel Puulmann",
   "description": "Back up PostgreSQL tables to S3 or disk.",
   "homepage": "https://github.com/macobo/taara",
